@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,20 +83,50 @@ export const FipeExplorer = () => {
     }
     setIsLoading(true);
     try {
+      // Buscar dados de todas as referências para criar histórico
+      const historicalData = [];
+      
+      // Buscar algumas referências recentes para criar um histórico
+      const referencesToFetch = referenceList.slice(0, 12); // últimos 12 meses
+      
+      for (const ref of referencesToFetch) {
+        try {
+          const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
+          const res = await fetch(url, { headers: { 'X-Subscription-Token': token }});
+          if (res.ok) {
+            const data = await res.json();
+            historicalData.push({
+              referenceMonth: ref.label,
+              price: data.price || 'R$ 0,00'
+            });
+          }
+        } catch (e) {
+          console.error(`Erro ao buscar referência ${ref.label}:`, e);
+        }
+      }
+
+      // Buscar dados atuais
       const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
       const res = await fetch(url, { headers: { 'X-Subscription-Token': token }});
       if (!res.ok) throw new Error('Erro ao buscar dados');
       const data = await res.json();
+      
       const record: VehicleHistory = {
         vehicleKey,
-        codeFipe: data.codeFipe,
-        brand: data.brand,
-        model: data.model,
-        modelYear: data.modelYear,
-        fuel: data.fuel,
+        codeFipe: data.codeFipe || '',
+        brand: data.brand || '',
+        model: data.model || '',
+        modelYear: data.modelYear || 0,
+        fuel: data.fuel || '',
         updatedAt: Date.now(),
-        priceHistory: Array.isArray(data.priceHistory) ? data.priceHistory : [],
+        priceHistory: historicalData.length > 0 ? historicalData : [
+          {
+            referenceMonth: referenceList.find(r => r.value === reference)?.label || 'Atual',
+            price: data.price || 'R$ 0,00'
+          }
+        ],
       };
+      
       setHistory(record);
       await vehicleDB.histories.put(record);
       toast({ title: 'Histórico atualizado', description: 'Dados salvos localmente.' });
@@ -108,10 +139,20 @@ export const FipeExplorer = () => {
   };
 
   const chartData = useMemo(() => {
-    if (!history) return [] as any[];
-    const toNumber = (brl: string) => Number(brl.replace(/[^0-9,.-]/g, '').replace('.', '').replace(',', '.'));
+    if (!history || !history.priceHistory) return [];
+    
+    const toNumber = (brl: string) => {
+      if (!brl) return 0;
+      return Number(brl.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+    };
+    
     return history.priceHistory
-      .map(p => ({ name: p.referenceMonth, value: toNumber(p.price) }))
+      .map(p => ({ 
+        name: p.referenceMonth, 
+        value: toNumber(p.price),
+        formattedValue: p.price
+      }))
+      .filter(p => p.value > 0)
       .reverse();
   }, [history]);
 
@@ -179,17 +220,23 @@ export const FipeExplorer = () => {
       {history && (
         <Card className="mt-6 p-4 md:p-6">
           <h2 className="text-xl font-semibold mb-4">{history.brand} • {history.model} • {history.modelYear}</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" hide={false} angle={-20} interval={0} dy={10} fontSize={12} />
-                <YAxis tickFormatter={(v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
-                <Tooltip formatter={(v: any) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
-                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {chartData.length > 0 ? (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" hide={false} angle={-20} interval={0} dy={10} fontSize={12} />
+                  <YAxis tickFormatter={(v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+                  <Tooltip formatter={(v: any) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+                  <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum dado de preço encontrado para este veículo.</p>
+            </div>
+          )}
         </Card>
       )}
     </section>
