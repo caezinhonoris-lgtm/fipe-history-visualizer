@@ -89,7 +89,7 @@ export const FipeExplorer = () => {
       const historicalData = [];
       
       // Buscar algumas referências recentes para criar um histórico
-      const referencesToFetch = referenceList.slice(0, 12); // últimos 12 meses
+      const referencesToFetch = referenceList; // todas as referências disponíveis
       
       for (const ref of referencesToFetch) {
         try {
