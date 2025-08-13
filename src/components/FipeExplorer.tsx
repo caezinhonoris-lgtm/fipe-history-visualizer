@@ -39,12 +39,23 @@ export const FipeExplorer = () => {
   useEffect(() => {
     fetch(`${API_BASE}/references`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
-      .then((data: any[]) => {
+      .then((data: any) => {
+        if (!Array.isArray(data)) {
+          console.error('Falha ao carregar referências', data);
+          setReferenceList([]);
+          toast({
+            title: 'Falha ao carregar referências',
+            description: String((data && (data.error || data.message)) || 'Verifique o token e tente novamente.'),
+            variant: 'destructive',
+          });
+        
+          return;
+        }
         const opts = data.map((d: any) => ({ value: String(d.code), label: d.month }));
         setReferenceList(opts);
         if (!reference && opts[0]) setReference(opts[0].value);
       })
-      .catch(() => {});
+      .catch((e) => console.error(e));
   }, [effectiveToken]);
 
   useEffect(() => {
@@ -52,7 +63,19 @@ export const FipeExplorer = () => {
     setBrand(''); setModel(''); setYear(''); setBrands([]); setModels([]); setYears([]);
     fetch(`${API_BASE}/${vehicleType}/brands?reference=${reference}`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
-      .then((data: any[]) => setBrands(data.map(b => ({ value: String(b.code ?? b.id), label: b.name }))))
+      .then((data: any) => {
+        if (!Array.isArray(data)) {
+          console.error('Falha ao carregar marcas', data);
+          setBrands([]);
+          toast({
+            title: 'Falha ao carregar marcas',
+            description: String((data && (data.error || data.message)) || 'Verifique o token e tente novamente.'),
+            variant: 'destructive',
+          });
+          return;
+        }
+        setBrands(data.map((b: any) => ({ value: String(b.code ?? b.id), label: b.name })));
+      })
       .catch((e) => console.error(e));
   }, [vehicleType, effectiveToken, reference]);
 
@@ -61,7 +84,19 @@ export const FipeExplorer = () => {
     setModel(''); setYear(''); setModels([]); setYears([]);
     fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models?reference=${reference}`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
-      .then((data: any[]) => setModels(data.map((m: any, idx: number) => ({ value: String(m.id ?? m.code), label: m.name }))))
+      .then((data: any) => {
+        if (!Array.isArray(data)) {
+          console.error('Falha ao carregar modelos', data);
+          setModels([]);
+          toast({
+            title: 'Falha ao carregar modelos',
+            description: String((data && (data.error || data.message)) || 'Verifique o token e tente novamente.'),
+            variant: 'destructive',
+          });
+          return;
+        }
+        setModels(data.map((m: any) => ({ value: String(m.id ?? m.code), label: m.name })));
+      })
       .catch((e) => console.error(e));
   }, [brand, vehicleType, effectiveToken, reference]);
 
@@ -70,7 +105,19 @@ export const FipeExplorer = () => {
     setYear(''); setYears([]);
     fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years?reference=${reference}`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
-      .then((data: any[]) => setYears(data.map((y: any) => ({ value: String(y.code), label: y.name }))))
+      .then((data: any) => {
+        if (!Array.isArray(data)) {
+          console.error('Falha ao carregar anos', data);
+          setYears([]);
+          toast({
+            title: 'Falha ao carregar anos',
+            description: String((data && (data.error || data.message)) || 'Verifique o token e tente novamente.'),
+            variant: 'destructive',
+          });
+          return;
+        }
+        setYears(data.map((y: any) => ({ value: String(y.code), label: y.name })));
+      })
       .catch((e) => console.error(e));
   }, [model, brand, vehicleType, effectiveToken, reference]);
 

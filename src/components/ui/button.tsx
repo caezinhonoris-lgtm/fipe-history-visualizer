@@ -21,7 +21,7 @@ const buttonVariants = cva(
         hero:
           "bg-[var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)] hover:brightness-110",
         cta:
-          "bg-foreground text-background hover:bg-foreground/90",
+          "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[var(--shadow-glow)] focus-visible:ring-primary",
         subtle:
           "bg-accent text-accent-foreground border border-border hover:bg-accent/80",
       },
