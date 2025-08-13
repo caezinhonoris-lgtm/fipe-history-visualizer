@@ -21,7 +21,7 @@ interface Option { value: string; label: string; }
 export const FipeExplorer = () => {
   const { toast } = useToast();
 
-  const [token, setToken] = useState<string>(() => localStorage.getItem(STORAGE_TOKEN_KEY) || DEFAULT_FIPE_TOKEN);
+  const [token, setToken] = useState<string>(() => localStorage.getItem(STORAGE_TOKEN_KEY) || '');
   const [vehicleType, setVehicleType] = useState<VehicleType>('cars');
   const [referenceList, setReferenceList] = useState<Option[]>([]);
   const [reference, setReference] = useState<string>('');
@@ -34,8 +34,10 @@ export const FipeExplorer = () => {
   const [history, setHistory] = useState<VehicleHistory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const effectiveToken = useMemo(() => (token?.trim() || DEFAULT_FIPE_TOKEN), [token]);
+
   useEffect(() => {
-    fetch(`${API_BASE}/references`, { headers: { 'X-Subscription-Token': token || '' }})
+    fetch(`${API_BASE}/references`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
       .then((data: any[]) => {
         const opts = data.map((d: any) => ({ value: String(d.code), label: d.month }));
@@ -43,45 +45,51 @@ export const FipeExplorer = () => {
         if (!reference && opts[0]) setReference(opts[0].value);
       })
       .catch(() => {});
-  }, [token]);
+  }, [effectiveToken]);
 
   useEffect(() => {
-    if (!vehicleType || !token) return;
+    if (!vehicleType) return;
     setBrand(''); setModel(''); setYear(''); setBrands([]); setModels([]); setYears([]);
-    fetch(`${API_BASE}/${vehicleType}/brands?reference=${reference}`, { headers: { 'X-Subscription-Token': token }})
+    fetch(`${API_BASE}/${vehicleType}/brands?reference=${reference}`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
       .then((data: any[]) => setBrands(data.map(b => ({ value: String(b.code ?? b.id), label: b.name }))))
       .catch((e) => console.error(e));
-  }, [vehicleType, token, reference]);
+  }, [vehicleType, effectiveToken, reference]);
 
   useEffect(() => {
     if (!brand) return;
     setModel(''); setYear(''); setModels([]); setYears([]);
-    fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models?reference=${reference}`, { headers: { 'X-Subscription-Token': token }})
+    fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models?reference=${reference}`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
       .then((data: any[]) => setModels(data.map((m: any, idx: number) => ({ value: String(m.id ?? m.code), label: m.name }))))
       .catch((e) => console.error(e));
-  }, [brand, vehicleType, token, reference]);
+  }, [brand, vehicleType, effectiveToken, reference]);
 
   useEffect(() => {
     if (!model) return;
     setYear(''); setYears([]);
-    fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years?reference=${reference}`, { headers: { 'X-Subscription-Token': token }})
+    fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years?reference=${reference}`, { headers: { 'X-Subscription-Token': effectiveToken }})
       .then(r => r.json())
       .then((data: any[]) => setYears(data.map((y: any) => ({ value: String(y.code), label: y.name }))))
       .catch((e) => console.error(e));
-  }, [model, brand, vehicleType, token, reference]);
+  }, [model, brand, vehicleType, effectiveToken, reference]);
 
   const vehicleKey = useMemo(() => `${vehicleType}:${brand}:${model}:${year}`, [vehicleType, brand, model, year]);
 
   const saveToken = () => {
-    localStorage.setItem(STORAGE_TOKEN_KEY, token);
-    toast({ title: 'Token salvo', description: 'Seu token foi salvo com segurança neste navegador.' });
+    const t = token.trim();
+    if (t) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, t);
+      toast({ title: 'Token salvo', description: 'Seu token foi salvo neste navegador.' });
+    } else {
+      localStorage.removeItem(STORAGE_TOKEN_KEY);
+      toast({ title: 'Usando token padrão', description: 'Nenhum token informado. Usaremos o embutido por padrão.' });
+    }
   };
 
   const fetchInfo = async () => {
-    if (!token || !vehicleType || !brand || !model || !year) {
-      toast({ title: 'Preencha os campos', description: 'Selecione tipo, marca, modelo, ano e informe o token.', variant: 'destructive' });
+    if (!vehicleType || !brand || !model || !year) {
+      toast({ title: 'Preencha os campos', description: 'Selecione tipo, marca, modelo e ano.', variant: 'destructive' });
       return;
     }
     setIsLoading(true);
@@ -95,7 +103,7 @@ export const FipeExplorer = () => {
       for (const ref of referencesToFetch) {
         try {
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
-          const res = await fetch(url, { headers: { 'X-Subscription-Token': token }});
+          const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
           if (res.ok) {
             const data = await res.json();
             historicalData.push({
@@ -110,7 +118,7 @@ export const FipeExplorer = () => {
 
       // Buscar dados atuais
       const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
-      const res = await fetch(url, { headers: { 'X-Subscription-Token': token }});
+      const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
       if (!res.ok) throw new Error('Erro ao buscar dados');
       const data = await res.json();
       
@@ -175,7 +183,7 @@ export const FipeExplorer = () => {
       <Card className="p-4 md:p-6 shadow-[var(--shadow-elegant)] animate-enter">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="md:col-span-2 flex gap-2">
-            <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Use o token padrão ou cole o seu X-Subscription-Token" />
+            <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Use o token padrão ou cole o seu X-Subscription-Token" />
             <Button variant="secondary" onClick={saveToken}>Salvar</Button>
           </div>
           <div>
@@ -222,7 +230,7 @@ export const FipeExplorer = () => {
           </div>
           <div className="md:col-span-4 flex justify-end">
             <Button
-              variant="hero"
+              variant="cta"
               size="lg"
               className="hover-scale shadow-[var(--shadow-glow)]"
               onClick={fetchInfo}
