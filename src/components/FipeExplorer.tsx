@@ -9,6 +9,7 @@ import { vehicleDB, VehicleHistory } from '@/lib/localdb';
 import { LineChart as LineChartIcon } from 'lucide-react';
 import { PriceHistoryChart } from './fipe/PriceHistoryChart';
 import { DepreciationTable } from './fipe/DepreciationTable';
+import { DEFAULT_FIPE_TOKEN } from '@/config/fipe';
 
 const API_BASE = 'https://fipe.parallelum.com.br/api/v2';
 const STORAGE_TOKEN_KEY = 'fipe_subscription_token';
@@ -20,7 +21,7 @@ interface Option { value: string; label: string; }
 export const FipeExplorer = () => {
   const { toast } = useToast();
 
-  const [token, setToken] = useState<string>(() => localStorage.getItem(STORAGE_TOKEN_KEY) || '');
+  const [token, setToken] = useState<string>(() => localStorage.getItem(STORAGE_TOKEN_KEY) || DEFAULT_FIPE_TOKEN);
   const [vehicleType, setVehicleType] = useState<VehicleType>('cars');
   const [referenceList, setReferenceList] = useState<Option[]>([]);
   const [reference, setReference] = useState<string>('');
@@ -174,7 +175,7 @@ export const FipeExplorer = () => {
       <Card className="p-4 md:p-6 shadow-[var(--shadow-elegant)] animate-enter">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="md:col-span-2 flex gap-2">
-            <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Cole seu X-Subscription-Token" />
+            <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Use o token padrão ou cole o seu X-Subscription-Token" />
             <Button variant="secondary" onClick={saveToken}>Salvar</Button>
           </div>
           <div>

@@ -17,7 +17,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 250 84% 54%;
+    --primary: 222 85% 55%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 261 72% 96%;
@@ -34,21 +34,21 @@ All colors MUST be HSL.
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 250 84% 54%;
+    --ring: 222 85% 55%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 250 84% 54%;
+    --sidebar-primary: 222 85% 55%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 260 72% 96%;
     --sidebar-accent-foreground: 255 60% 22%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 250 84% 54%;
+    --sidebar-ring: 222 85% 55%;
 
     /* Extra design tokens */
-    --primary-glow: 255 100% 70%;
+    --primary-glow: 200 100% 64%;
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.15);
     --shadow-glow: 0 0 30px hsl(var(--primary-glow) / 0.35);
@@ -64,7 +64,7 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 250 84% 60%;
+    --primary: 222 89% 62%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 251 24% 16%;
@@ -81,17 +81,17 @@ All colors MUST be HSL.
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 250 84% 60%;
+    --ring: 222 89% 62%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 250 84% 60%;
+    --sidebar-primary: 222 89% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 252 18% 14%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 250 84% 60%;
+    --sidebar-ring: 222 89% 62%;
 
-    --primary-glow: 255 100% 70%;
+    --primary-glow: 200 100% 64%;
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.3);
     --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
