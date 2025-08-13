@@ -46,7 +46,7 @@ export const FipeExplorer = () => {
     setBrand(''); setModel(''); setYear(''); setBrands([]); setModels([]); setYears([]);
     fetch(`${API_BASE}/${vehicleType}/brands?reference=${reference}`, { headers: { 'X-Subscription-Token': token }})
       .then(r => r.json())
-      .then((data: any[]) => setBrands(data.map(b => ({ value: String(b.id), label: b.name }))))
+      .then((data: any[]) => setBrands(data.map(b => ({ value: String(b.code ?? b.id), label: b.name }))))
       .catch((e) => console.error(e));
   }, [vehicleType, token, reference]);
 
@@ -55,7 +55,7 @@ export const FipeExplorer = () => {
     setModel(''); setYear(''); setModels([]); setYears([]);
     fetch(`${API_BASE}/${vehicleType}/brands/${brand}/models?reference=${reference}`, { headers: { 'X-Subscription-Token': token }})
       .then(r => r.json())
-      .then((data: any[]) => setModels(data.map((m: any) => ({ value: String(m.id), label: m.name }))))
+      .then((data: any[]) => setModels(data.map((m: any, idx: number) => ({ value: String(m.id ?? m.code), label: m.name }))))
       .catch((e) => console.error(e));
   }, [brand, vehicleType, token, reference]);
 
@@ -132,7 +132,7 @@ export const FipeExplorer = () => {
             <Select value={reference} onValueChange={setReference}>
               <SelectTrigger><SelectValue placeholder="Referência" /></SelectTrigger>
               <SelectContent>
-                {referenceList.map(r => (<SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>))}
+                {referenceList.map((r, idx) => (<SelectItem key={`${r.value}-${idx}`} value={r.value}>{r.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -150,7 +150,7 @@ export const FipeExplorer = () => {
             <Select value={brand} onValueChange={setBrand}>
               <SelectTrigger><SelectValue placeholder="Marca" /></SelectTrigger>
               <SelectContent>
-                {brands.map(o => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
+                {brands.map((o, idx) => (<SelectItem key={`${o.value}-${idx}`} value={o.value}>{o.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -158,7 +158,7 @@ export const FipeExplorer = () => {
             <Select value={model} onValueChange={setModel}>
               <SelectTrigger><SelectValue placeholder="Modelo" /></SelectTrigger>
               <SelectContent>
-                {models.map(o => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
+                {models.map((o, idx) => (<SelectItem key={`${o.value}-${idx}`} value={o.value}>{o.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -166,7 +166,7 @@ export const FipeExplorer = () => {
             <Select value={year} onValueChange={setYear}>
               <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
               <SelectContent>
-                {years.map(o => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
+                {years.map((o, idx) => (<SelectItem key={`${o.value}-${idx}`} value={o.value}>{o.label}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
