@@ -1,3 +1,4 @@
+
 import React, { useId } from 'react'
 import { ResponsiveContainer, LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 
@@ -75,7 +76,19 @@ export const PriceHistoryChart = ({ data }: { data: PricePoint[] }) => {
           </defs>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" angle={-25} interval="preserveStartEnd" tickMargin={12} minTickGap={8} />
-          <YAxis domain={yDomain} tickFormatter={(v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+          <YAxis 
+            domain={yDomain} 
+            tickFormatter={(v) => {
+              // Formatação mais limpa para o eixo Y
+              if (v >= 1000000) {
+                return `R$ ${(v / 1000000).toFixed(1)}M`
+              } else if (v >= 1000) {
+                return `R$ ${(v / 1000).toFixed(0)}k`
+              } else {
+                return `R$ ${v.toFixed(0)}`
+              }
+            }} 
+          />
           <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeDasharray: '3 3', opacity: 0.2 }} />
           <Area type="monotone" dataKey="value" stroke="none" fill={`url(#${gradientId})`} />
           <Line

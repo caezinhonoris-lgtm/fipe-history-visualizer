@@ -213,8 +213,17 @@ export const FipeExplorer = () => {
     if (!history || !history.priceHistory) return [];
     
     const toNumber = (brl: string) => {
-      if (!brl) return 0;
-      return Number(brl.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+      if (!brl || typeof brl !== 'string') return 0;
+      
+      // Remove "R$", espaços e converte vírgulas em pontos
+      const cleanPrice = brl
+        .replace(/R\$\s?/g, '')  // Remove R$ e espaços
+        .replace(/\./g, '')      // Remove pontos (milhares)
+        .replace(',', '.')       // Converte vírgula decimal em ponto
+        .trim();
+      
+      const number = parseFloat(cleanPrice);
+      return isNaN(number) ? 0 : number;
     };
     
     const chronological = history.priceHistory
