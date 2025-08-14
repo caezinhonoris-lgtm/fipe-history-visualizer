@@ -151,9 +151,22 @@ export const FipeExplorer = () => {
         ref.label.includes(`janeiro/${targetYear}`)
       );
       
-      // Se não encontrar janeiro do ano anterior, começar do início da lista
-      const searchStartIndex = startReferenceIndex >= 0 ? startReferenceIndex : 0;
-      const searchReferences = referenceList.slice(searchStartIndex);
+      // Encontrar a referência atual para limitar a busca
+      const currentReferenceIndex = referenceList.findIndex(ref => ref.value === reference);
+      
+      // Se não encontrar janeiro do ano anterior, procurar a primeira referência do ano anterior
+      let actualStartIndex = startReferenceIndex;
+      if (actualStartIndex === -1) {
+        actualStartIndex = referenceList.findIndex(ref => ref.label.includes(`/${targetYear}`));
+      }
+      
+      // Se ainda não encontrar, não buscar histórico muito antigo
+      if (actualStartIndex === -1 || currentReferenceIndex === -1) {
+        throw new Error(`Não há dados disponíveis a partir de ${targetYear} para este veículo`);
+      }
+      
+      // Buscar apenas do período válido (ano anterior até atual)
+      const searchReferences = referenceList.slice(actualStartIndex, currentReferenceIndex + 1);
       
       toast({ 
         title: 'Buscando histórico completo', 
