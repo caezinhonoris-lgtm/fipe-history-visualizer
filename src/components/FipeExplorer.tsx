@@ -147,6 +147,8 @@ export const FipeExplorer = () => {
       
       // Encontrar referência de janeiro do ano anterior ao modelo
       const targetYear = modelYear - 1;
+      console.log('Buscando histórico para:', { modelYear, targetYear, vehicleType, brand, model, year });
+      
       const startReferenceIndex = referenceList.findIndex(ref => 
         ref.label.includes(`janeiro/${targetYear}`)
       );
@@ -154,35 +156,44 @@ export const FipeExplorer = () => {
       // Encontrar a referência atual para limitar a busca
       const currentReferenceIndex = referenceList.findIndex(ref => ref.value === reference);
       
+      console.log('Índices encontrados:', { startReferenceIndex, currentReferenceIndex, totalReferences: referenceList.length });
+      
       // Se não encontrar janeiro do ano anterior, procurar a primeira referência do ano anterior
       let actualStartIndex = startReferenceIndex;
       if (actualStartIndex === -1) {
         actualStartIndex = referenceList.findIndex(ref => ref.label.includes(`/${targetYear}`));
+        console.log('Procurando qualquer mês de', targetYear, ':', actualStartIndex);
       }
       
-      // Se ainda não encontrar, não buscar histórico muito antigo
-      if (actualStartIndex === -1 || currentReferenceIndex === -1) {
-        throw new Error(`Não há dados disponíveis a partir de ${targetYear} para este veículo`);
+      // Se ainda não encontrar, usar uma estratégia mais flexível
+      if (actualStartIndex === -1) {
+        // Procurar os últimos 24 meses disponíveis
+        actualStartIndex = Math.max(0, currentReferenceIndex - 23);
+        console.log('Usando estratégia flexível, começando do índice:', actualStartIndex);
       }
       
       // Buscar apenas do período válido (ano anterior até atual)
       const searchReferences = referenceList.slice(actualStartIndex, currentReferenceIndex + 1);
+      console.log('Referências a serem pesquisadas:', searchReferences.length, 'de', actualStartIndex, 'até', currentReferenceIndex);
       
       toast({ 
         title: 'Buscando histórico completo', 
-        description: `Procurando dados desde ${targetYear} para ${modelYear}...` 
+        description: `Procurando dados para ${modelYear}...` 
       });
       
       const historicalData = [];
-      let firstFoundIndex = -1;
       
-      // Primeira fase: encontrar o primeiro registro disponível
-      for (let i = 0; i < searchReferences.length; i++) {
-        const ref = searchReferences[i];
+      // Nova estratégia: começar da referência atual e ir voltando no tempo
+      const searchReferencesReversed = [...searchReferences].reverse();
+      console.log('Buscando histórico em ordem reversa (do atual para o passado)');
+      
+      // Buscar dados de forma sequencial para ter controle melhor
+      for (let i = 0; i < searchReferencesReversed.length; i++) {
+        const ref = searchReferencesReversed[i];
         try {
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentar timeout para 5s
           
           const res = await fetch(url, { 
             headers: { 'X-Subscription-Token': effectiveToken },
@@ -193,13 +204,14 @@ export const FipeExplorer = () => {
           if (res.ok) {
             const data = await res.json();
             if (data.price && data.price !== 'R$ 0,00') {
-              firstFoundIndex = i;
               historicalData.push({
                 referenceMonth: ref.label,
                 price: data.price
               });
-              break;
+              console.log(`Encontrado: ${ref.label} - ${data.price}`);
             }
+          } else if (res.status === 404) {
+            console.log(`Sem dados para: ${ref.label}`);
           }
         } catch (e) {
           if (e.name !== 'AbortError') {
@@ -208,73 +220,70 @@ export const FipeExplorer = () => {
         }
         
         // Dar feedback visual do progresso
-        if (i % 5 === 0 && i > 0) {
+        if (i % 3 === 0) {
           toast({ 
             title: 'Buscando...', 
-            description: `Verificando ${ref.label}...` 
+            description: `Verificando ${ref.label}... (${historicalData.length} encontrados)` 
           });
+        }
+        
+        // Parar se encontramos dados suficientes (pelo menos 6 meses) ou se chegamos muito no passado
+        if (historicalData.length >= 6 && i > 12) {
+          console.log('Parando busca - dados suficientes encontrados');
+          break;
         }
       }
       
-      if (firstFoundIndex === -1) {
-        throw new Error('Nenhum histórico encontrado para este veículo');
-      }
-      
-      // Segunda fase: buscar todos os meses desde o primeiro encontrado até o atual
-      const remainingRefs = searchReferences.slice(firstFoundIndex + 1, 24); // Máximo 24 meses
-      
-      const promises = remainingRefs.map(async (ref) => {
-        try {
-          const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-          
-          const res = await fetch(url, { 
-            headers: { 'X-Subscription-Token': effectiveToken },
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          
-          if (res.ok) {
-            const data = await res.json();
-            if (data.price && data.price !== 'R$ 0,00') {
-              return {
-                referenceMonth: ref.label,
-                price: data.price
-              };
-            }
-          }
-        } catch (e) {
-          if (e.name !== 'AbortError') {
-            console.error(`Erro ao buscar referência ${ref.label}:`, e);
+      if (historicalData.length === 0) {
+        // Se não encontrou nenhum histórico, buscar apenas o dado atual
+        const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
+        const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price && data.price !== 'R$ 0,00') {
+            historicalData.push({
+              referenceMonth: referenceList.find(r => r.value === reference)?.label || 'Atual',
+              price: data.price
+            });
           }
         }
-        return null;
+      }
+      // Ordenar dados cronologicamente (do mais antigo para o mais recente)
+      historicalData.sort((a, b) => {
+        const aIndex = referenceList.findIndex(ref => ref.label === a.referenceMonth);
+        const bIndex = referenceList.findIndex(ref => ref.label === b.referenceMonth);
+        return bIndex - aIndex; // Ordem decrescente (mais antigo primeiro)
       });
-      
-      const results = await Promise.all(promises);
-      historicalData.push(...results.filter(Boolean));
 
-      // Buscar dados atuais
-      const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
-      const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
-      if (!res.ok) throw new Error('Erro ao buscar dados');
-      const data = await res.json();
+      console.log('Dados históricos encontrados:', historicalData.length);
       
+      // Buscar dados atuais se ainda não temos na lista
+      const currentRef = referenceList.find(r => r.value === reference);
+      const hasCurrentData = historicalData.some(h => h.referenceMonth === currentRef?.label);
+      
+      if (!hasCurrentData && currentRef) {
+        const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
+        const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
+        if (res.ok) {
+          const data = await res.json();
+          if (data.price && data.price !== 'R$ 0,00') {
+            historicalData.unshift({
+              referenceMonth: currentRef.label,
+              price: data.price
+            });
+          }
+        }
+      }
+
       const record: VehicleHistory = {
         vehicleKey,
-        codeFipe: data.codeFipe || '',
-        brand: data.brand || '',
-        model: data.model || '',
-        modelYear: data.modelYear || 0,
-        fuel: data.fuel || '',
+        codeFipe: historicalData[0] ? '' : '', // Será preenchido com dados atuais se necessário
+        brand: historicalData[0] ? '' : '',
+        model: historicalData[0] ? '' : '',
+        modelYear: modelYear,
+        fuel: '',
         updatedAt: Date.now(),
-        priceHistory: historicalData.length > 0 ? historicalData : [
-          {
-            referenceMonth: referenceList.find(r => r.value === reference)?.label || 'Atual',
-            price: data.price || 'R$ 0,00'
-          }
-        ],
+        priceHistory: historicalData.length > 0 ? historicalData : [],
       };
       
       setHistory(record);
