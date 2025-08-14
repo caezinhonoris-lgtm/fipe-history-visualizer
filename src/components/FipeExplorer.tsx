@@ -141,27 +141,40 @@ export const FipeExplorer = () => {
     }
     setIsLoading(true);
     try {
-      // Buscar dados de todas as referências para criar histórico
+      // Buscar apenas as últimas 12 referências para criar um histórico mais rápido
       const historicalData = [];
+      const recentReferences = referenceList.slice(0, 12); // Apenas os 12 meses mais recentes
       
-      // Buscar algumas referências recentes para criar um histórico
-      const referencesToFetch = referenceList; // todas as referências disponíveis
-      
-      for (const ref of referencesToFetch) {
+      // Buscar em paralelo para ser mais rápido
+      const promises = recentReferences.map(async (ref) => {
         try {
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
-          const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+          
+          const res = await fetch(url, { 
+            headers: { 'X-Subscription-Token': effectiveToken },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
           if (res.ok) {
             const data = await res.json();
-            historicalData.push({
+            return {
               referenceMonth: ref.label,
               price: data.price || 'R$ 0,00'
-            });
+            };
           }
         } catch (e) {
-          console.error(`Erro ao buscar referência ${ref.label}:`, e);
+          if (e.name !== 'AbortError') {
+            console.error(`Erro ao buscar referência ${ref.label}:`, e);
+          }
         }
-      }
+        return null;
+      });
+      
+      const results = await Promise.all(promises);
+      historicalData.push(...results.filter(Boolean));
 
       // Buscar dados atuais
       const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
