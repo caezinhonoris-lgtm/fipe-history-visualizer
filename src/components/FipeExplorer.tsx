@@ -141,16 +141,35 @@ export const FipeExplorer = () => {
     }
     setIsLoading(true);
     try {
-      // Buscar apenas as últimas 12 referências para criar um histórico mais rápido
-      const historicalData = [];
-      const recentReferences = referenceList.slice(0, 12); // Apenas os 12 meses mais recentes
+      // Extrair o ano do modelo selecionado
+      const selectedYear = years.find(y => y.value === year);
+      const modelYear = selectedYear ? parseInt(selectedYear.label) : new Date().getFullYear();
       
-      // Buscar em paralelo para ser mais rápido
-      const promises = recentReferences.map(async (ref) => {
+      // Encontrar referência de janeiro do ano anterior ao modelo
+      const targetYear = modelYear - 1;
+      const startReferenceIndex = referenceList.findIndex(ref => 
+        ref.label.includes(`janeiro/${targetYear}`)
+      );
+      
+      // Se não encontrar janeiro do ano anterior, começar do início da lista
+      const searchStartIndex = startReferenceIndex >= 0 ? startReferenceIndex : 0;
+      const searchReferences = referenceList.slice(searchStartIndex);
+      
+      toast({ 
+        title: 'Buscando histórico completo', 
+        description: `Procurando dados desde ${targetYear} para ${modelYear}...` 
+      });
+      
+      const historicalData = [];
+      let firstFoundIndex = -1;
+      
+      // Primeira fase: encontrar o primeiro registro disponível
+      for (let i = 0; i < searchReferences.length; i++) {
+        const ref = searchReferences[i];
         try {
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
           
           const res = await fetch(url, { 
             headers: { 'X-Subscription-Token': effectiveToken },
@@ -160,10 +179,57 @@ export const FipeExplorer = () => {
           
           if (res.ok) {
             const data = await res.json();
-            return {
-              referenceMonth: ref.label,
-              price: data.price || 'R$ 0,00'
-            };
+            if (data.price && data.price !== 'R$ 0,00') {
+              firstFoundIndex = i;
+              historicalData.push({
+                referenceMonth: ref.label,
+                price: data.price
+              });
+              break;
+            }
+          }
+        } catch (e) {
+          if (e.name !== 'AbortError') {
+            console.error(`Erro ao buscar referência ${ref.label}:`, e);
+          }
+        }
+        
+        // Dar feedback visual do progresso
+        if (i % 5 === 0 && i > 0) {
+          toast({ 
+            title: 'Buscando...', 
+            description: `Verificando ${ref.label}...` 
+          });
+        }
+      }
+      
+      if (firstFoundIndex === -1) {
+        throw new Error('Nenhum histórico encontrado para este veículo');
+      }
+      
+      // Segunda fase: buscar todos os meses desde o primeiro encontrado até o atual
+      const remainingRefs = searchReferences.slice(firstFoundIndex + 1, 24); // Máximo 24 meses
+      
+      const promises = remainingRefs.map(async (ref) => {
+        try {
+          const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          
+          const res = await fetch(url, { 
+            headers: { 'X-Subscription-Token': effectiveToken },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.price && data.price !== 'R$ 0,00') {
+              return {
+                referenceMonth: ref.label,
+                price: data.price
+              };
+            }
           }
         } catch (e) {
           if (e.name !== 'AbortError') {
