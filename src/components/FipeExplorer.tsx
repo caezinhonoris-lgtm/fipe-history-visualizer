@@ -170,7 +170,7 @@ export const FipeExplorer = () => {
       const historicalData = [];
       let foundFirstRecord = false;
       
-      // Filtrar referências a partir de janeiro do ano anterior
+      // Filtrar referências a partir de janeiro do ano anterior ao modelo
       const filteredReferences = referenceList.filter(ref => {
         const refYear = parseInt(ref.label.split('/')[1]);
         const refMonth = ref.label.split('/')[0];
@@ -184,7 +184,7 @@ export const FipeExplorer = () => {
           return true;
         }
         return false;
-      }).reverse(); // Reverter para começar do mais antigo
+      }).reverse(); // Reverter para ordem cronológica (mais antigo primeiro)
       
       // Buscar sequencialmente a partir de janeiro do ano anterior
       for (const ref of filteredReferences) {
@@ -275,14 +275,14 @@ export const FipeExplorer = () => {
       return isNaN(number) ? 0 : number;
     };
     
+    // Manter ordem cronológica: períodos iniciais à esquerda, atual à direita
     const chronological = history.priceHistory
       .map((p) => ({ 
         name: p.referenceMonth, 
         value: toNumber(p.price),
         formattedValue: p.price,
       }))
-      .filter((p) => p.value > 0)
-      .reverse();
+      .filter((p) => p.value > 0);
 
     return chronological.map((item, idx) => {
       const prev = idx > 0 ? chronological[idx - 1].value : undefined;
