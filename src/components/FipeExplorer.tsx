@@ -162,18 +162,32 @@ export const FipeExplorer = () => {
         throw new Error('Preço não disponível para este veículo na referência selecionada. Tente uma referência mais recente.');
       }
 
-      // Buscar histórico limitado para evitar muitas requisições
-      const historicalData = [
-        {
-          referenceMonth: referenceList.find(r => r.value === reference)?.label || 'Atual',
-          price: currentData.price
+      // Determinar o ano do modelo do veículo
+      const modelYear = currentData.modelYear || parseInt(year);
+      const startYear = modelYear - 1; // Ano anterior ao modelo
+      
+      // Buscar histórico a partir de janeiro do ano anterior ao modelo
+      const historicalData = [];
+      let foundFirstRecord = false;
+      
+      // Filtrar referências a partir de janeiro do ano anterior
+      const filteredReferences = referenceList.filter(ref => {
+        const refYear = parseInt(ref.label.split('/')[1]);
+        const refMonth = ref.label.split('/')[0];
+        
+        // Incluir se for do ano de início (startYear) ou posterior
+        if (refYear >= startYear) {
+          // Se for o ano de início, só incluir a partir de janeiro
+          if (refYear === startYear) {
+            return refMonth === 'janeiro';
+          }
+          return true;
         }
-      ];
+        return false;
+      }).reverse(); // Reverter para começar do mais antigo
       
-      // Buscar algumas referências anteriores (máximo 6 para não estourar limite)
-      const previousReferences = referenceList.slice(1, 7);
-      
-      for (const ref of previousReferences) {
+      // Buscar sequencialmente a partir de janeiro do ano anterior
+      for (const ref of filteredReferences) {
         try {
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
           const res = await fetch(url, { 
@@ -183,10 +197,14 @@ export const FipeExplorer = () => {
           if (res.ok) {
             const data = await res.json();
             if (data.price && data.price !== 'R$ 0,00') {
+              foundFirstRecord = true;
               historicalData.push({
                 referenceMonth: ref.label,
                 price: data.price
               });
+            } else if (foundFirstRecord) {
+              // Se já encontrou registros antes e agora não tem preço, pode parar
+              break;
             }
           } else if (res.status === 429) {
             console.log('Limite atingido, parando busca histórica');
@@ -194,10 +212,21 @@ export const FipeExplorer = () => {
           }
           
           // Pequeno delay para evitar rate limit
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 150));
         } catch (e) {
           console.log(`Erro ao buscar ${ref.label}, continuando...`);
         }
+      }
+      
+      // Adicionar o dado atual se não estiver já incluído
+      const currentRefMonth = referenceList.find(r => r.value === reference)?.label;
+      const hasCurrentData = historicalData.some(h => h.referenceMonth === currentRefMonth);
+      
+      if (!hasCurrentData && currentRefMonth) {
+        historicalData.push({
+          referenceMonth: currentRefMonth,
+          price: currentData.price
+        });
       }
       
       const record: VehicleHistory = {
