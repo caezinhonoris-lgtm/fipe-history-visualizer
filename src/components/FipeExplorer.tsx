@@ -141,69 +141,89 @@ export const FipeExplorer = () => {
     }
     setIsLoading(true);
     try {
-      // Buscar apenas as últimas 12 referências para criar um histórico mais rápido
-      const historicalData = [];
-      const recentReferences = referenceList.slice(0, 12); // Apenas os 12 meses mais recentes
+      // Primeiro buscar dados da referência atual para garantir que existe
+      const currentUrl = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
+      const currentRes = await fetch(currentUrl, { 
+        headers: { 'X-Subscription-Token': effectiveToken }
+      });
       
-      // Buscar em paralelo para ser mais rápido
-      const promises = recentReferences.map(async (ref) => {
+      if (!currentRes.ok) {
+        const errorData = await currentRes.json().catch(() => ({}));
+        if (currentRes.status === 429) {
+          throw new Error('Limite de requisições atingido. Por favor, cole seu próprio token no campo acima ou tente novamente mais tarde.');
+        }
+        throw new Error(errorData.error || errorData.message || 'Veículo não encontrado para esta referência');
+      }
+      
+      const currentData = await currentRes.json();
+      
+      // Se não tem preço válido no dado atual, pode ser que o veículo não existia nesta referência
+      if (!currentData.price || currentData.price === 'R$ 0,00') {
+        throw new Error('Preço não disponível para este veículo na referência selecionada. Tente uma referência mais recente.');
+      }
+
+      // Buscar histórico limitado para evitar muitas requisições
+      const historicalData = [
+        {
+          referenceMonth: referenceList.find(r => r.value === reference)?.label || 'Atual',
+          price: currentData.price
+        }
+      ];
+      
+      // Buscar algumas referências anteriores (máximo 6 para não estourar limite)
+      const previousReferences = referenceList.slice(1, 7);
+      
+      for (const ref of previousReferences) {
         try {
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-          
           const res = await fetch(url, { 
-            headers: { 'X-Subscription-Token': effectiveToken },
-            signal: controller.signal
+            headers: { 'X-Subscription-Token': effectiveToken }
           });
-          clearTimeout(timeoutId);
           
           if (res.ok) {
             const data = await res.json();
-            return {
-              referenceMonth: ref.label,
-              price: data.price || 'R$ 0,00'
-            };
+            if (data.price && data.price !== 'R$ 0,00') {
+              historicalData.push({
+                referenceMonth: ref.label,
+                price: data.price
+              });
+            }
+          } else if (res.status === 429) {
+            console.log('Limite atingido, parando busca histórica');
+            break;
           }
+          
+          // Pequeno delay para evitar rate limit
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (e) {
-          if (e.name !== 'AbortError') {
-            console.error(`Erro ao buscar referência ${ref.label}:`, e);
-          }
+          console.log(`Erro ao buscar ${ref.label}, continuando...`);
         }
-        return null;
-      });
-      
-      const results = await Promise.all(promises);
-      historicalData.push(...results.filter(Boolean));
-
-      // Buscar dados atuais
-      const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${reference}`;
-      const res = await fetch(url, { headers: { 'X-Subscription-Token': effectiveToken }});
-      if (!res.ok) throw new Error('Erro ao buscar dados');
-      const data = await res.json();
+      }
       
       const record: VehicleHistory = {
         vehicleKey,
-        codeFipe: data.codeFipe || '',
-        brand: data.brand || '',
-        model: data.model || '',
-        modelYear: data.modelYear || 0,
-        fuel: data.fuel || '',
+        codeFipe: currentData.codeFipe || '',
+        brand: currentData.brand || '',
+        model: currentData.model || '',
+        modelYear: currentData.modelYear || 0,
+        fuel: currentData.fuel || '',
         updatedAt: Date.now(),
-        priceHistory: historicalData.length > 0 ? historicalData : [
-          {
-            referenceMonth: referenceList.find(r => r.value === reference)?.label || 'Atual',
-            price: data.price || 'R$ 0,00'
-          }
-        ],
+        priceHistory: historicalData,
       };
       
       setHistory(record);
       await vehicleDB.histories.put(record);
-      toast({ title: 'Histórico atualizado', description: 'Dados salvos localmente.' });
+      toast({ 
+        title: 'Dados carregados', 
+        description: `${historicalData.length} registro(s) de preço encontrado(s).` 
+      });
     } catch (e: any) {
       console.error(e);
-      toast({ title: 'Erro', description: e?.message || 'Falha ao obter dados', variant: 'destructive' });
+      toast({ 
+        title: 'Erro ao buscar dados', 
+        description: e?.message || 'Falha ao obter dados', 
+        variant: 'destructive' 
+      });
     } finally {
       setIsLoading(false);
     }
