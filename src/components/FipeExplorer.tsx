@@ -162,9 +162,9 @@ export const FipeExplorer = () => {
         throw new Error('Preço não disponível para este veículo na referência selecionada. Tente uma referência mais recente.');
       }
 
-      // Determinar o ano do modelo do veículo
-      const modelYear = currentData.modelYear || parseInt(year);
-      const startYear = modelYear - 1; // Ano anterior ao modelo
+      // Determinar o ano anterior ao ano modelo selecionado pelo usuário
+      const selectedModelYear = parseInt(year);
+      const startYear = selectedModelYear - 1; // Sempre o ano anterior ao ano modelo selecionado
       
       // Buscar histórico a partir de janeiro do ano anterior ao modelo
       const historicalData = [];
