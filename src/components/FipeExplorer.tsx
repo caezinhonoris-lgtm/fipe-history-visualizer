@@ -189,6 +189,8 @@ export const FipeExplorer = () => {
       // Buscar sequencialmente a partir de janeiro do ano anterior
       for (const ref of filteredReferences) {
         try {
+          // CORREÇÃO: Buscar sempre com o ano modelo selecionado pelo usuário
+          // O modelo específico deve ser o mesmo, apenas mudamos a referência temporal
           const url = `${API_BASE}/${vehicleType}/brands/${brand}/models/${model}/years/${year}?reference=${ref.value}`;
           const res = await fetch(url, { 
             headers: { 'X-Subscription-Token': effectiveToken }
@@ -196,19 +198,32 @@ export const FipeExplorer = () => {
           
           if (res.ok) {
             const data = await res.json();
-            if (data.price && data.price !== 'R$ 0,00') {
+            
+            // Validar consistência: verificar se é o mesmo modelo e ano
+            if (data.model && data.modelYear && 
+                data.model === currentData.model && 
+                data.modelYear === currentData.modelYear &&
+                data.price && data.price !== 'R$ 0,00') {
+              
               foundFirstRecord = true;
               historicalData.push({
                 referenceMonth: ref.label,
                 price: data.price
               });
+              
+              console.log(`✓ Encontrado: ${ref.label} - ${data.model} ${data.modelYear} - ${data.price}`);
             } else if (foundFirstRecord) {
-              // Se já encontrou registros antes e agora não tem preço, pode parar
+              // Se já encontrou registros antes e agora não tem preço ou dados inconsistentes, pode parar
+              console.log(`⚠️ Dados inconsistentes ou sem preço em ${ref.label}, parando busca`);
               break;
+            } else {
+              console.log(`⚠️ Modelo ainda não existia em ${ref.label}`);
             }
           } else if (res.status === 429) {
             console.log('Limite atingido, parando busca histórica');
             break;
+          } else {
+            console.log(`❌ Erro HTTP ${res.status} em ${ref.label}`);
           }
           
           // Pequeno delay para evitar rate limit
