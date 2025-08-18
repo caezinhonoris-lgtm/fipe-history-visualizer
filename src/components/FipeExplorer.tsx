@@ -171,20 +171,12 @@ export const FipeExplorer = () => {
       let foundFirstRecord = false;
       
       // Filtrar referências a partir de janeiro do ano anterior ao modelo
-      const filteredReferences = referenceList.filter(ref => {
-        const refYear = parseInt(ref.label.split('/')[1]);
-        const refMonth = ref.label.split('/')[0];
-        
-        // Incluir se for do ano de início (startYear) ou posterior
-        if (refYear >= startYear) {
-          // Se for o ano de início, só incluir a partir de janeiro
-          if (refYear === startYear) {
-            return refMonth === 'janeiro';
-          }
-          return true;
-        }
-        return false;
-      }).reverse(); // Reverter para ordem cronológica (mais antigo primeiro)
+       const filteredReferences = referenceList
+         .filter(ref => {
+           const refYear = parseInt(ref.label.split('/')[1]);
+           return !Number.isNaN(refYear) && refYear >= startYear; // incluir todos os meses desde janeiro do ano anterior
+         })
+         .reverse(); // ordem cronológica (mais antigo -> recente)
       
       // Buscar sequencialmente a partir de janeiro do ano anterior
       for (const ref of filteredReferences) {
@@ -213,9 +205,9 @@ export const FipeExplorer = () => {
               
               console.log(`✓ Encontrado: ${ref.label} - ${data.model} ${data.modelYear} - ${data.price}`);
             } else if (foundFirstRecord) {
-              // Se já encontrou registros antes e agora não tem preço ou dados inconsistentes, pode parar
-              console.log(`⚠️ Dados inconsistentes ou sem preço em ${ref.label}, parando busca`);
-              break;
+              // Já iniciou o histórico; pule meses inconsistentes/sem preço e continue
+              console.log(`⚠️ Dados inconsistentes ou sem preço em ${ref.label}, continuando busca`);
+              // sem break: seguimos para os próximos meses
             } else {
               console.log(`⚠️ Modelo ainda não existia em ${ref.label}`);
             }
